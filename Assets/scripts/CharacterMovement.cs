@@ -1,6 +1,8 @@
+using System.Collections;
 using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.UI;
 
 public class CharacterMovement : MonoBehaviour
 {
@@ -25,12 +27,26 @@ public class CharacterMovement : MonoBehaviour
     public float lookSensitivity = 1f;
     private float maxLookAngle = 80f;
 
+    private float maxStamina = 1f;
+    private float staminaValue = 1f;
+    private bool staminaCharged = true;
+
+    //[SerializeField] private float maxStamina;
+      [SerializeField] private Slider staminaSlider;
+    //[SerializeField] private float staminaDrainRate = 10f;
+    //[SerializeField] private float staminaRegenerate = 5;
+    //private float stamina;
+
+
+    private WeaponController weaponController;
+
     private void Start()
     {
         characterController = GetComponent<CharacterController>();
         cameraTransform = Camera.main.transform;
+        weaponController = GetComponent<WeaponController>();
 
-
+        //stamina = maxStamina;
     }
 
     private void Update()
@@ -44,7 +60,7 @@ public class CharacterMovement : MonoBehaviour
     public void Move(InputAction.CallbackContext context)
     {
         moveInput = context.ReadValue<Vector2>();
-        Debug.Log(moveInput);
+
     }
 
     public void Jump(InputAction.CallbackContext context)
@@ -56,16 +72,24 @@ public class CharacterMovement : MonoBehaviour
         }
     }
 
+    public void Look(InputAction.CallbackContext context)
+    {
+        lookInput = context.ReadValue<Vector2>();
+    }
 
     /// <summary>
     /// receive Sprint input and run
     /// </summary>
     /// <param name="context"></param>
-    public void sprint(InputAction.CallbackContext context)
+    public void Sprint(InputAction.CallbackContext context)
     {
+        var SprintAction = context.ReadValue<float>();
+        isSprinting = SprintAction > 0 ? true : false;
+    }
 
-
-
+    public void Shoot(InputAction.CallbackContext context)
+    {
+        if (weaponController.CanShoot()) weaponController.Shoot();
     }
 
     public void MovePlayer()
@@ -88,7 +112,7 @@ public class CharacterMovement : MonoBehaviour
         //movement
         Vector3 moveDirection = new Vector3(moveInput.x, 0, moveInput.y);
         moveDirection = transform.TransformDirection(moveDirection);
-        float targetSpeed = isSprinting ? speed *multiplier : speed;
+        float targetSpeed = isSprinting && staminaCharged ? speed *multiplier : speed;
         characterController.Move(moveDirection * targetSpeed * Time.deltaTime);
 
         //apply gravity constantly
@@ -97,14 +121,59 @@ public class CharacterMovement : MonoBehaviour
 
     }
 
+    /// <summary>
+    /// Handles camera rotation based on Look Input
+    /// </summary>
     private void LookAround()
     {
+        // Horizontal rotation (Y-axis) based on sensitivity on input
         float horizontalRotation = lookInput.x * lookSensitivity;
         transform.Rotate(Vector3.up * horizontalRotation);
 
+        // Vertical rotation (X-axis) with clamping to prevent over-rotation
         verticalRotation -= lookInput.y * lookSensitivity;
         verticalRotation = Mathf.Clamp(verticalRotation, -maxLookAngle, maxLookAngle);
-        cameraTransform.localRotation = quaternion.Euler(verticalRotation, 0f, 0f);
+        cameraTransform.localRotation = Quaternion.Euler(verticalRotation, 0, 0);
     }
 
+    //private void HandleStamina()
+    //{
+    //    if (isSprinting && stamina > 0)
+    //    {
+    //        stamina -= staminaDrainRate * Time.deltaTime;
+    //        if totally used
+    //        if (stamina <= 0)
+    //        {
+    //            stamina = 0;
+    //            isSprinting = false;
+    //        }
+    //        regenerate stamina
+    //        else if (!isSprinting && stamina < maxStamina)
+    //        {
+    //            stamina += staminaRegenerate * Time.deltaTime;
+    //        }
+    //    }
+    //}
+
+
+    private void Stamina()
+    {
+
+        if (isSprinting  && staminaValue >= 0)
+        {
+            staminaValue -= Time.deltaTime;
+
+            if (staminaValue <= 0)
+            {
+                staminaValue = 0;
+                isSprinting = false;
+            }
+        }
+        else if (!isSprinting && staminaValue <= maxStamina)
+        {
+            staminaValue += Time.deltaTime;
+        }
+                                                                                                                                  
+        staminaSlider.value = staminaValue;
+    }
 }
